@@ -1,6 +1,6 @@
 # Requirements
 + Cmake (min version 2.8)
-+ OpenCV
++ OpenCV (version 3.x)
 
 # Building
 ```
