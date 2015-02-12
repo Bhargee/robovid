@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
         }
         bytes = send(sockfd, frame.data, img_size, 0);
         if (bytes != img_size) {
-            printf("Send incomplete: sent %d, server recieved %d", img_size, bytes);
+            printf("Send incomplete: sent %d, server returnes %d", img_size, bytes);
         }
     }
 
