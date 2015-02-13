@@ -7,13 +7,16 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
 #include <arpa/inet.h>
 
 #include <opencv2/opencv.hpp>
 
+#define PORT "3490" // the port client will be connecting to 
+
 using namespace cv;
 
-
+// get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET) {
@@ -23,48 +26,46 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(int argc, char *argv[]) {
-    int sockfd, numbytes, bytes;
+int main(int argc, char *argv[])
+{
+    int sockfd, numbytes;  
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
 
-    int img_size = 0;
-
-    if (argc != 3) {
-        fprintf(stderr, "usage: hostname port\n");
+    if (argc != 2) {
+        fprintf(stderr,"usage: client hostname\n");
         exit(1);
     }
-
-    printf("Connecting to server %s at port %s\n", argv[1], argv[2]);
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(argv[1], argv[2], &hints, &servinfo))) {
-        fprintf(stderr, "getaddrinfo failed with %s\n", gai_strerror(rv));
-        exit(1);
+    if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
     }
 
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, 
-                        p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("Socket error");
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                p->ai_protocol)) == -1) {
+            perror("client: socket");
             continue;
         }
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
-            perror("Connect error");
+            perror("client: connect");
             continue;
         }
 
         break;
     }
 
-    if (!p) {
-        fprintf(stderr, "client failed to connect\n");
+    if (p == NULL) {
+        fprintf(stderr, "client: failed to connect\n");
         return 2;
     }
 
@@ -72,7 +73,8 @@ int main(int argc, char *argv[]) {
             s, sizeof s);
     printf("client: connecting to %s\n", s);
 
-    freeaddrinfo(servinfo);
+    freeaddrinfo(servinfo); // all done with this structure
+
 
     VideoCapture cap(0);
     if (!cap.isOpened()) 
@@ -81,22 +83,21 @@ int main(int argc, char *argv[]) {
 
     // capture RGB frames and transmit
     Mat frame;
-    while (true) {
-        cap >> frame;
-        frame = frame.reshape(0,1);
-        int img_size = frame.total() * frame.elemSize();
-        if (getchar() == 'q')
-            break;
-        if (!img_size) {
-            img_size = frame.total() * frame.elemSize();
-        }
-        bytes = send(sockfd, frame.data, img_size, 0);
-        if (bytes != img_size) {
-            printf("Send incomplete: sent %d, server recieved %d", img_size, bytes);
-        }
+    
+    cap >> frame;
+
+    int img_size = frame.total() * frame.elemSize();
+
+    if((numbytes = send(sockfd, frame.data, img_size, 0)) == -1) {
+        printf("send error\n");
+        perror("send:");
     }
 
+    printf("%d bytes sent\n", numbytes);
+
+
     close(sockfd);
+
     return 0;
 }
 
