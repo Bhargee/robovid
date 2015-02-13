@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     char s[INET6_ADDRSTRLEN];
 
     if (argc != 2) {
-        fprintf(stderr,"usage: client hostname\n");
+        fprintf(stderr,"usage: robovidc hostname\n");
         exit(1);
     }
 
@@ -83,18 +83,17 @@ int main(int argc, char *argv[])
 
     // capture RGB frames and transmit
     Mat frame;
-    
-    cap >> frame;
+    char input; 
+    while (true) {
+        cap >> frame;
 
-    int img_size = frame.total() * frame.elemSize();
+        int img_size = frame.total() * frame.elemSize();
 
-    if((numbytes = send(sockfd, frame.data, img_size, 0)) == -1) {
-        printf("send error\n");
-        perror("send:");
+        if((numbytes = send(sockfd, frame.data, img_size, 0)) == -1) {
+            perror("send:");
+        }
+
     }
-
-    printf("%d bytes sent\n", numbytes);
-
 
     close(sockfd);
 

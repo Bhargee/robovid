@@ -18,7 +18,6 @@
 #define BACKLOG 10     
 #define HEIGHT 480
 #define WIDTH 640
-#define SIZE 921600
 
 using namespace cv;
 
@@ -51,7 +50,7 @@ int main(void)
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
+    hints.ai_flags = AI_PASSIVE;
 
     if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
@@ -104,6 +103,7 @@ int main(void)
     Mat img = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
     int img_size = img.total() * img.elemSize();
     uchar sock_data[img_size];
+    namedWindow( "Display window", WINDOW_AUTOSIZE );
     
     printf("server: waiting for connections...\n");
 
@@ -114,10 +114,17 @@ int main(void)
             perror("accept: ");
             continue;
         }
-        inet_ntop(their_addr.ss_family,
+        else {
+            inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("server: got connection from %s\n", s);
+            s, sizeof s); 
+            printf("server: got connection from %s\n", s);
+            break;
+        }
+
+    }
+
+    while (true) {
         int bytes = 0;
         for (int i = 0; i < img_size; i += bytes) {
             if ((bytes = recv(new_fd, sock_data + i, img_size  - i, 0)) == -1) {
@@ -133,16 +140,12 @@ int main(void)
                 ptr += 3;
             }
         }
-        
-        close(new_fd);
-
-        break;
+        // TODO figure out what to do with the frame here
     }
 
-    namedWindow( "Display window", WINDOW_AUTOSIZE );
-    imshow( "Display window", img ); 
-    waitKey(0);
-
+    close(new_fd);
+    close(sock_fd);
+    
   
     return 0;
 }
