@@ -89,7 +89,6 @@ int main(int argc, char *argv[])
         frame = frame.reshape(0,1);
 
         int img_size = frame.total() * frame.elemSize();
-        printf("frame size: %d\n", img_size);
 
         if((numbytes = send(sockfd, frame.data, img_size, 0)) == -1) {
             perror("send:");
