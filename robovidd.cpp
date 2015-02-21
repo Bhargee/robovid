@@ -136,15 +136,17 @@ int main(void)
         int ptr = 0;
         for (int i = 0; i < img.rows; i++) {
             for (int j = 0; j < img.cols; j++) {
-                img.at<Vec3b>(i,j) = Vec3b(sock_data[ptr+0], sock_data[ptr+1], sock_data[ptr+2]);
+                img.at<Vec3b>(i,j) = Vec3b(sock_data[ptr+0], sock_data[ptr+1], 
+                                            sock_data[ptr+2]);
                 ptr += 3;
             }
         }
+
         // TODO figure out what to do with the frame here
     }
 
     close(new_fd);
-    close(sock_fd);
+    close(sockfd);
     
   
     return 0;
