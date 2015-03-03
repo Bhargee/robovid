@@ -7,3 +7,6 @@ target_link_libraries( robovidc ${OpenCV_LIBS} )
 
 add_executable( robovidd robovidd.cpp )
 target_link_libraries( robovidd ${OpenCV_LIBS} )
+
+add_executable( robovid_util robovid_util.cpp )
+target_link_libraries( robovid_util ${OpenCV_LIBS} )

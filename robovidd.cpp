@@ -16,15 +16,10 @@
 #define PORT "3490"  // the port users will be connecting to
 
 #define BACKLOG 10     
-#define HEIGHT 480
-#define WIDTH 640
+#define MAX_BUFF_LEN 65536
 
 using namespace cv;
-
-void sigchld_handler(int s)
-{
-    while(waitpid(-1, NULL, WNOHANG) > 0);
-}
+using namespace std;
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -41,15 +36,13 @@ int main(void)
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    struct sigaction sa;
-    int yes=1;
+    socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
     int rv;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
     if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -63,12 +56,6 @@ int main(void)
                 p->ai_protocol)) == -1) {
             perror("server: socket");
             continue;
-        }
-
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
         }
 
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
@@ -87,67 +74,27 @@ int main(void)
 
     freeaddrinfo(servinfo); // all done with this structure
 
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-
-    sa.sa_handler = sigchld_handler; // reap all dead processes
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(1);
-    }
-
-    Mat img = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
-    int img_size = img.total() * img.elemSize();
-    uchar sock_data[img_size];
-    namedWindow( "Display window", WINDOW_AUTOSIZE );
-    
     printf("server: waiting for connections...\n");
 
+    addr_len = sizeof their_addr;
+    uchar buf[MAX_BUFF_LEN];
+    Mat img;
+    unsigned short data_len;
+    namedWindow("display");
     while (true) {
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept: ");
-            continue;
+        if (recvfrom(sockfd, buf, MAX_BUFF_LEN-1, 0,
+                    (struct sockaddr *) &their_addr, &addr_len) == -1) {
+            perror("recvfrom");
+            exit(1);
         }
-        else {
-            inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s); 
-            printf("server: got connection from %s\n", s);
-            break;
-        }
-
+        printf("Got some bytes boi\n");
+        data_len = (((unsigned short)buf[0]) << 8) | buf[1];
+        vector<uchar> data(&buf[2], &buf[2] + data_len);    
+        img = imdecode(data, 0);
+        imshow("display", img);
+        waitKey(0);
     }
 
-    while (true) {
-        int bytes = 0;
-        for (int i = 0; i < img_size; i += bytes) {
-            if ((bytes = recv(new_fd, sock_data + i, img_size  - i, 0)) == -1) {
-                perror("recv: ");
-                exit(1);
-            }
-        }
-
-        int ptr = 0;
-        for (int i = 0; i < img.rows; i++) {
-            for (int j = 0; j < img.cols; j++) {
-                img.at<Vec3b>(i,j) = Vec3b(sock_data[ptr+0], sock_data[ptr+1], 
-                                            sock_data[ptr+2]);
-                ptr += 3;
-            }
-        }
-
-        // TODO figure out what to do with the frame here
-    }
-
-    close(new_fd);
     close(sockfd);
-    
-  
     return 0;
 }
