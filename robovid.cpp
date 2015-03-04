@@ -3,100 +3,100 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <netdb.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-
+#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include <opencv2/opencv.hpp>
 
-#define PORT "3490" // the port client will be connecting to 
+#define SERVERPORT "4950"	// the port users will be connecting to
 
 using namespace cv;
+using namespace std;
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
+void fmt_data(uchar* data, uchar *prefix, uchar *res, int size) {
+    res[0] = prefix[0];
+    res[1] = prefix[1];
+    for (int i = 0; i < size; i++) {
+        res[i+2] = data[i];
     }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
 int main(int argc, char *argv[])
 {
-    int sockfd, numbytes;  
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    char s[INET6_ADDRSTRLEN];
+	int sockfd;
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+	int numbytes;
+    //opencv specific vars
+    Mat frame, frame_gray;
+    char input;
+    vector<uchar> compressed_buff;
+    vector<int> params = vector<int>(2);
+    params[0] = IMWRITE_JPEG_QUALITY;
+    params[1] = 20;
+ 
+	if (argc != 2) {
+		fprintf(stderr,"usage: robovidc hostname \n");
+		exit(1);
+	}
 
-    if (argc != 2) {
-        fprintf(stderr,"usage: robovidc hostname\n");
-        exit(1);
-    }
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
+	if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+		return 1;
+	}
 
-    if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
+	// loop through all the results and make a socket
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("talker: socket");
+			continue;
+		}
 
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
+		break;
+	}
 
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-            continue;
-        }
-
-        break;
-    }
-
-    if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
-    }
-
-    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-            s, sizeof s);
-    printf("client: connecting to %s\n", s);
-
-    freeaddrinfo(servinfo); // all done with this structure
-
+	if (p == NULL) {
+		fprintf(stderr, "failed to bind socket\n");
+		return 2;
+	}
+   
+    printf("Waiting for video capture...\n");
 
     VideoCapture cap(0);
-    if (!cap.isOpened()) 
+    if (!cap.isOpened()) {
         return -1;
-    printf("Beginning video capture...\n");
-
-    // capture RGB frames and transmit
-    Mat frame;
-    char input; 
-    while (true) {
-        cap >> frame;
-
-        int img_size = frame.total() * frame.elemSize();
-
-        if((numbytes = send(sockfd, frame.data, img_size, 0)) == -1) {
-            perror("send:");
-        }
-
     }
 
-    close(sockfd);
+    printf("Starting video capture\n");
+    cap >> frame;
+    cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
+    imencode(".jpg", frame_gray, compressed_buff, params);
+    cout << "compressed size - " << compressed_buff.size() << endl;
+    unsigned short data_len = compressed_buff.size();
+    /*uchar buf[2];
+    buf[0] = data_len & 0xff;
+    buf[1] = (data_len >> 8) & 0xff;
+    uchar to_server[compressed_buff.size()+2];
+    fmt_data(compressed_buff.data(), buf, to_server, compressed_buff.size());*/
+    
+	if ((numbytes = sendto(sockfd, compressed_buff.data(), data_len, 0,
+			 p->ai_addr, p->ai_addrlen)) == -1) {
+		perror("robovidc: sendto");
+		exit(1);
+	}
 
-    return 0;
+	freeaddrinfo(servinfo);
+
+	printf("robovidc: sent %d bytes to %s\n", numbytes, argv[1]);
+	close(sockfd);
+
+	return 0;
 }
-
