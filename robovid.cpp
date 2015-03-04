@@ -76,22 +76,25 @@ int main(int argc, char *argv[])
     }
 
     printf("Starting video capture\n");
-    cap >> frame;
-    cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
-    imencode(".jpg", frame_gray, compressed_buff, params);
-    cout << "compressed size - " << compressed_buff.size() << endl;
-    unsigned short data_len = compressed_buff.size();
-    /*uchar buf[2];
-    buf[0] = data_len & 0xff;
-    buf[1] = (data_len >> 8) & 0xff;
-    uchar to_server[compressed_buff.size()+2];
-    fmt_data(compressed_buff.data(), buf, to_server, compressed_buff.size());*/
-    
-	if ((numbytes = sendto(sockfd, compressed_buff.data(), data_len, 0,
-			 p->ai_addr, p->ai_addrlen)) == -1) {
-		perror("robovidc: sendto");
-		exit(1);
-	}
+    while (true) {
+        cap >> frame;
+        cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
+        imencode(".jpg", frame_gray, compressed_buff, params);
+#ifdef DEBUG
+        cout << "compressed size - " << compressed_buff.size() << endl;
+#endif
+        unsigned short data_len = compressed_buff.size();
+        /*uchar buf[2];
+        buf[0] = data_len & 0xff;
+        buf[1] = (data_len >> 8) & 0xff;
+        uchar to_server[compressed_buff.size()+2];
+        fmt_data(compressed_buff.data(), buf, to_server, compressed_buff.size());*/
+        if ((numbytes = sendto(sockfd, compressed_buff.data(), data_len, 0,
+                 p->ai_addr, p->ai_addrlen)) == -1) {
+            perror("robovidc: sendto");
+            exit(1);
+        }
+    }
 
 	freeaddrinfo(servinfo);
 
