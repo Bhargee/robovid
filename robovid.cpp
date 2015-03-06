@@ -84,11 +84,6 @@ int main(int argc, char *argv[])
         cout << "compressed size - " << compressed_buff.size() << endl;
 #endif
         unsigned short data_len = compressed_buff.size();
-        /*uchar buf[2];
-        buf[0] = data_len & 0xff;
-        buf[1] = (data_len >> 8) & 0xff;
-        uchar to_server[compressed_buff.size()+2];
-        fmt_data(compressed_buff.data(), buf, to_server, compressed_buff.size());*/
         if ((numbytes = sendto(sockfd, compressed_buff.data(), data_len, 0,
                  p->ai_addr, p->ai_addrlen)) == -1) {
             perror("robovidc: sendto");
