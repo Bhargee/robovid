@@ -11,7 +11,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#define MYPORT "4950"	// the port users will be connecting to
+#define MYPORT "3490"	// the port users will be connecting to
 
 #define MAXBUFLEN 64000
 
@@ -76,6 +76,7 @@ int main(void)
 	printf("robovidd: waiting to recvfrom...\n");
 
 	addr_len = sizeof their_addr;
+    Mat frame = Mat::zeros(.45 * 480, .45 * 640, CV_8UC1);
     while (true) {
         if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
             (struct sockaddr *)&their_addr, &addr_len)) == -1) {
@@ -83,13 +84,14 @@ int main(void)
             exit(1);
         }
 
-        printf("robovidd: got packet from %s\n",
-            inet_ntop(their_addr.ss_family,
-                get_in_addr((struct sockaddr *)&their_addr),
-                s, sizeof s));
-        printf("robovidd: packet is %d bytes long\n", numbytes);
-        vector<uchar> data(buf, buf+numbytes);
-        Mat frame = imdecode(data, 0);
+        int ptr = 0;
+        for (int i = 0; i < .45 * 480; i++) {
+            for (int j = 0; j < .45 * 640; j++) {
+                frame.at <uchar>(i,j) = buf[ptr];
+                ptr++;
+            }
+        }
+        //Mat frame = imdecode(data, 0);
         namedWindow("display");
         imshow("display", frame);
         waitKey(0);
