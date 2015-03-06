@@ -24,6 +24,14 @@ void fmt_data(uchar* data, uchar *prefix, uchar *res, int size) {
     }
 }
 
+uchar *vec_to_arr(vector<uchar> compressed_data) {
+    uchar *ret_buf = new uchar(compressed_data.size());
+    for (int i = 0; i < compressed_data.size(); i++) {
+        ret_buf[i] = compressed_data[i];
+    }
+    return ret_buf;
+}
+
 int main(int argc, char *argv[])
 {
 	int sockfd;
@@ -95,6 +103,5 @@ int main(int argc, char *argv[])
 
 	printf("robovidc: sent %d bytes to %s\n", numbytes, argv[1]);
 	close(sockfd);
-
 	return 0;
 }

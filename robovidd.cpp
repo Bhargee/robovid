@@ -94,7 +94,6 @@ int main(void)
         imshow("display", frame);
         waitKey(0);
     }
-	close(sockfd);
-
-	return 0;
+    close(sockfd);
+    return 0;
 }
