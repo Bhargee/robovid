@@ -13,7 +13,7 @@
 
 #define MYPORT "3490"	// the port users will be connecting to
 
-#define MAXBUFLEN 64000
+#define MAXBUFLEN 62208
 
 using namespace cv;
 using namespace std;
@@ -76,14 +76,13 @@ int main(void)
 	printf("robovidd: waiting to recvfrom...\n");
 
 	addr_len = sizeof their_addr;
-    Mat frame = Mat::zeros(.45 * 480, .45 * 640, CV_8UC1);
+    Mat frame = Mat::zeros(.45 * 480, .45 * 640, CV_8U);
     while (true) {
-        if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+        if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN , 0,
             (struct sockaddr *)&their_addr, &addr_len)) == -1) {
             perror("recvfrom");
             exit(1);
         }
-
         int ptr = 0;
         for (int i = 0; i < .45 * 480; i++) {
             for (int j = 0; j < .45 * 640; j++) {
@@ -91,7 +90,6 @@ int main(void)
                 ptr++;
             }
         }
-        //Mat frame = imdecode(data, 0);
         namedWindow("display");
         imshow("display", frame);
         waitKey(0);

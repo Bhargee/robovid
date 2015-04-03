@@ -10,6 +10,7 @@
 #include <netdb.h>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #define SERVERPORT "3490"	// the port users will be connecting to
 
@@ -23,7 +24,7 @@ int main(int argc, char *argv[])
 	int rv;
 	int numbytes;
     //opencv specific vars
-    Mat frame, frame_gray;
+    Mat frame, frame_gray, frame_gray_resized;
 
 	if (argc != 2) {
 		fprintf(stderr,"usage: robovidc hostname \n");
@@ -65,14 +66,15 @@ int main(int argc, char *argv[])
     while (true) {
         cap >> frame;
         cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
-        resize(frame_gray,frame_gray, Size(0,0), .45 * 480, .45 * 640);
-        frame.reshape(0, 1);
-        int data_len = frame_gray.total() * frame_gray.elemSize();
-        if ((numbytes = sendto(sockfd, frame_gray.data, data_len, 0,
+        resize(frame_gray,frame_gray_resized, Size(.45*480,.45*640));
+        int data_len = frame_gray_resized.total() * frame_gray_resized.elemSize();
+        printf("data_len - %d\n", data_len);
+        if ((numbytes = sendto(sockfd, frame_gray_resized.data, data_len, 0,
                  p->ai_addr, p->ai_addrlen)) == -1) {
             perror("robovidc: sendto");
             exit(1);
         }
+        printf("num bytes sent - %d\n", numbytes);
     }
 
 	freeaddrinfo(servinfo);
