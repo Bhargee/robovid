@@ -35,7 +35,7 @@ int main(void)
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
-	char buf[MAXBUFLEN] = {0};
+	uchar buf[MAXBUFLEN] = {0};
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 
@@ -83,13 +83,13 @@ int main(void)
             perror("recvfrom");
             exit(1);
         }
-        int ptr = 0;
+        /*int ptr = 0;
         for (int i = 0; i < .45 * 480; i++) {
             for (int j = 0; j < .45 * 640; j++) {
-                frame.at <uchar>(i,j) = buf[ptr];
+                frame.at<uchar>(i,j) = buf[ptr];
                 ptr++;
             }
-        }
+        }*/
         namedWindow("display");
         imshow("display", frame);
         waitKey(0);

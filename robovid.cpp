@@ -12,72 +12,83 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#define SERVERPORT "3490"	// the port users will be connecting to
+#include <lcm/lcm-cpp.hpp>
+#include "LCM_Image_Type.hpp"
 
-using namespace cv;
+#define SERVERPORT "3490"
+
 using namespace std;
+using namespace JMD;
+using namespace cv;
+
+class Handler
+{
+    public:
+        ~Handler() {}
+        Handler(const char *server_ip) { 
+           int rv;
+           struct addrinfo hints, *servinfo;
+           memset(&hints, 0, sizeof hints);
+           hints.ai_family = AF_UNSPEC;
+           hints.ai_socktype = SOCK_DGRAM;
+           if ((rv = getaddrinfo(server_ip, SERVERPORT, &hints, &servinfo)) != 0) {
+               fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+           }
+           for(p = servinfo; p != NULL; p = p->ai_next) {
+               if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+                   perror("talker: socket");
+                   continue;
+               }
+               break;
+           }
+
+           if (p == NULL) {
+               fprintf(stderr, "failed to bind socket\n");
+           }
+        }
+        void handleMessage(const lcm::ReceiveBuffer* rbuf,
+                const string& chan,
+                const LCM_Image_Type* msg)
+        {
+            int numbytes;
+            Mat orig, gray, gray_resized;
+            vector<uint8_t> data = msg->Data;
+            orig = Mat(msg->Height, msg->Width, CV_8UC3, &data[0]);
+            if (orig.empty())
+                printf("empty!\n");
+            cvtColor(orig, gray, COLOR_BGR2GRAY);
+            resize(gray, gray_resized, Size(.45*480, .45*640));
+            int data_len = gray_resized.total() * gray_resized.elemSize();
+            if ((numbytes = sendto(sockfd, gray_resized.data, data_len, 0,
+                p->ai_addr, p->ai_addrlen)) == -1) {
+                perror("robovidc: sendto");
+                exit(1);
+            }
+            printf("num bytes sent - %d\n", numbytes);
+        }
+    private:
+        int sockfd;
+        struct addrinfo *p;
+
+
+};
 
 int main(int argc, char *argv[])
 {
-	int sockfd;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	int numbytes;
-    //opencv specific vars
-    Mat frame, frame_gray, frame_gray_resized;
-
-	if (argc != 2) {
-		fprintf(stderr,"usage: robovidc hostname \n");
-		exit(1);
-	}
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-
-	if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		return 1;
-	}
-
-	for(p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype,
-				p->ai_protocol)) == -1) {
-			perror("talker: socket");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "failed to bind socket\n");
-		return 2;
-	}
-   
-    printf("Waiting for video capture...\n");
-
-    VideoCapture cap(0);
-    if (!cap.isOpened()) {
+    if (argc != 2) {
+        fprintf(stderr, "robovidc called without hostname, exiting\n");
         return -1;
     }
-
-    printf("Starting video capture\n");
-    while (true) {
-        cap >> frame;
-        cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
-        resize(frame_gray,frame_gray_resized, Size(.45*480,.45*640));
-        int data_len = frame_gray_resized.total() * frame_gray_resized.elemSize();
-        printf("data_len - %d\n", data_len);
-        if ((numbytes = sendto(sockfd, frame_gray_resized.data, data_len, 0,
-                 p->ai_addr, p->ai_addrlen)) == -1) {
-            perror("robovidc: sendto");
-            exit(1);
-        }
-        printf("num bytes sent - %d\n", numbytes);
+    // lcm 
+    lcm::LCM lcm;
+    if (!lcm.good()) {
+        fprintf(stderr, "LCM initialization failed, returning \n");
+        return -1;
     }
-
-	freeaddrinfo(servinfo);
-	close(sockfd);
+    Handler h(argv[1]);
+    lcm.subscribe("EXAMPLE", &Handler::handleMessage, &h);
+    printf("subscribed to EXAMPLE\n");
+    while (0 == lcm.handle());
+    printf("done\n");
 	return 0;
 }
