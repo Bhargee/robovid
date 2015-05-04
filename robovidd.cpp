@@ -35,7 +35,7 @@ int main(void)
 	int rv;
 	int numbytes;
 	struct sockaddr_storage their_addr;
-	char buf[MAXBUFLEN] = {0};
+	uchar buf[MAXBUFLEN] = {0};
 	socklen_t addr_len;
 	char s[INET6_ADDRSTRLEN];
 
@@ -76,20 +76,22 @@ int main(void)
 	printf("robovidd: waiting to recvfrom...\n");
 
 	addr_len = sizeof their_addr;
-    Mat frame = Mat::zeros(.45 * 480, .45 * 640, CV_8U);
+    //Mat frame = Mat::zeros(.45 * 480, .45 * 640, CV_8U);
     while (true) {
         if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN , 0,
             (struct sockaddr *)&their_addr, &addr_len)) == -1) {
             perror("recvfrom");
             exit(1);
         }
+        uchar img[MAXBUFLEN];
         int ptr = 0;
         for (int i = 0; i < .45 * 480; i++) {
             for (int j = 0; j < .45 * 640; j++) {
-                frame.at <uchar>(i,j) = buf[ptr];
+                img[ptr] = buf[((int)(.45*480)*j) + i];
                 ptr++;
             }
         }
+        Mat frame = Mat(.45*480, .45*640, CV_8U, img);
         namedWindow("display");
         imshow("display", frame);
         waitKey(0);

@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
     printf("Starting video capture\n");
     while (true) {
         cap >> frame;
+        frame = frame.t();
         cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
         resize(frame_gray,frame_gray_resized, Size(.45*480,.45*640));
         int data_len = frame_gray_resized.total() * frame_gray_resized.elemSize();
@@ -74,7 +75,6 @@ int main(int argc, char *argv[])
             perror("robovidc: sendto");
             exit(1);
         }
-        printf("num bytes sent - %d\n", numbytes);
     }
 
 	freeaddrinfo(servinfo);
